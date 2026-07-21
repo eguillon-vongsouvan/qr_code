@@ -114,10 +114,11 @@ function authMiddleware(req, res, next) {
   if (token) {
     const session = db.prepare('SELECT user_id, expires_at FROM user_sessions WHERE token = ?').get(token);
     if (session && new Date(session.expires_at) > new Date()) {
-      const user = db.prepare('SELECT role, force_password_change FROM users WHERE id = ?').get(session.user_id);
+      const user = db.prepare('SELECT username, role, force_password_change FROM users WHERE id = ?').get(session.user_id);
       if (user) {
         req.userRole = user.role;
         req.userId = session.user_id;
+        req.username = user.username;
         
         // Check for forced password change
         if (user.force_password_change) {
@@ -464,7 +465,8 @@ app.get('/admin', (req, res) => {
     headerSubtitle: 'Gestion des listes et historique',
     isTeacher: true,
     isAdmin: true,
-    bodyHtml: renderAdminPage({ error: req.query.err, message: req.query.msg }, req.userId)
+    username: req.username,
+    bodyHtml: renderAdminPage({ error: req.query.err, message: req.query.msg }, req.userId, req.username)
   }));
 });
 
@@ -915,11 +917,20 @@ app.get('/api/sessions/:sessionId/view.pdf', authMiddleware, adminMiddleware, as
 app.delete('/api/users/:id', authMiddleware, adminMiddleware, (req, res) => {
   const userId = req.params.id;
   try {
-    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(userId);
+    // Interdire de supprimer son propre compte
+    if (userId === req.userId) {
+      return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte.' });
+    }
+    const user = db.prepare('SELECT username, role FROM users WHERE id = ?').get(userId);
     if (!user) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
+    // Seul le SuperAdmin (admini) peut supprimer des admins
     if (user.role === 'admin') {
+      const currentUser = db.prepare('SELECT username FROM users WHERE id = ?').get(req.userId);
+      if (!currentUser || currentUser.username !== 'admini') {
+        return res.status(403).json({ error: 'Seul le SuperAdmin (admini) peut supprimer des administrateurs.' });
+      }
       const adminCount = db.prepare("SELECT COUNT(*) as c FROM users WHERE role = 'admin'").get().c;
       if (adminCount <= 1) {
         return res.status(400).json({ error: 'Impossible de supprimer le dernier administrateur' });
@@ -1152,6 +1163,7 @@ app.get('/affiche', authMiddleware, (req, res) => {
       sommaireItems: null,
       isTeacher: true,
       isAdmin: req.userRole === 'admin',
+      username: req.username,
       bodyHtml: renderSeanceQrBody({
         session,
         baseUrl: baseUrl(),
