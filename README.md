@@ -15,6 +15,7 @@ Une application web complète en **Node.js** permettant aux enseignants de faire
   - Chiffrement AES-256-GCM des données personnelles dans la base SQLite (Noms, Prénoms, Emails).
   - Logs système audités et chiffrés de bout en bout (`system.log`).
   - Mots de passe utilisateurs hachés avec `bcrypt`.
+  - Vérification automatique des mots de passe contre les bases de données de mots de passe compromis (Have I Been Pwned / RockYou).
   - Protection contre les failles courantes (IDOR, Injection SQL).
 - **Exportation des Présences** : Export direct en PDF et Excel pour les archives administratives.
 - **Cloudflare Ready** : Détection dynamique de l'hôte (`PUBLIC_URL`) pour générer les bons liens sur les QR codes.

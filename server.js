@@ -38,6 +38,7 @@ const {
 } = require('./lib/seance-pages');
 const { renderAdminPage } = require('./lib/admin-page');
 const multer = require('multer');
+const { isPasswordPwned } = require('./lib/password-check');
 
 // Configuration multer pour l'upload de fichiers
 const upload = multer({ dest: path.join(__dirname, 'data', 'classes') });
@@ -376,7 +377,7 @@ app.get('/change-password', (req, res) => {
   }));
 });
 
-app.post('/change-password', (req, res) => {
+app.post('/change-password', async (req, res) => {
   const token = req.signedCookies.session_token;
   if (!token) return res.redirect('/login');
   
@@ -397,6 +398,10 @@ app.post('/change-password', (req, res) => {
   const isComplex = newPwd.length >= 8 && /[A-Z]/.test(newPwd) && /[a-z]/.test(newPwd) && /[0-9]/.test(newPwd) && /[@$!%*?&._-]/.test(newPwd);
   if (!isComplex) {
     return res.redirect('/change-password?err=Le nouveau mot de passe ne respecte pas les critères de sécurité.');
+  }
+  
+  if (await isPasswordPwned(newPwd)) {
+    return res.redirect('/change-password?err=Ce mot de passe a été détecté dans une fuite de données connue. Par sécurité, veuillez en choisir un autre.');
   }
   
   const { logEvent } = require('./lib/logger');
@@ -931,7 +936,7 @@ app.delete('/api/users/:id', authMiddleware, adminMiddleware, (req, res) => {
 });
 
 // API: Créer un utilisateur
-app.post('/admin/users', authMiddleware, adminMiddleware, (req, res) => {
+app.post('/admin/users', authMiddleware, adminMiddleware, async (req, res) => {
   const { username, password, role } = req.body;
   if (!username || !password || (role !== 'admin' && role !== 'prof')) {
     return res.redirect('/admin?err=' + encodeURIComponent('Paramètres invalides pour la création du compte.'));
@@ -940,6 +945,9 @@ app.post('/admin/users', authMiddleware, adminMiddleware, (req, res) => {
     const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
     if (existing) {
       return res.redirect('/admin?err=' + encodeURIComponent('Cet identifiant existe déjà.'));
+    }
+    if (await isPasswordPwned(password)) {
+      return res.redirect('/admin?err=' + encodeURIComponent('Ce mot de passe a été détecté dans une fuite de données. Veuillez utiliser un mot de passe plus sécurisé.'));
     }
     const { logEvent } = require('./lib/logger');
     db.prepare('INSERT INTO users (id, username, password_hash, role, force_password_change) VALUES (?, ?, ?, ?, 1)')
