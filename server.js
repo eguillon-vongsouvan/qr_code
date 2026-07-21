@@ -487,15 +487,43 @@ app.post('/admin/upload', authMiddleware, adminMiddleware, upload.single('classF
       if (Array.isArray(data)) students.push(...data);
     } else {
       const lines = raw.split(/\r?\n/).filter((l) => l.trim());
-      lines.forEach((line, index) => {
-        const parts = line.split(/[;,]/);
-        if (parts.length < 2) return;
-        const prenom = parts[0].trim();
-        const nom = parts[1].trim();
-        const classRosters = require('./lib/class-rosters');
-        if (index === 0 && classRosters.normalizeKey(prenom) === 'prenom' && classRosters.normalizeKey(nom) === 'nom') return;
-        students.push({ prenom, nom });
-      });
+      const classRosters = require('./lib/class-rosters');
+      
+      if (lines.length > 0) {
+        // Détecter le séparateur
+        const firstLine = lines[0];
+        const sep = firstLine.includes(';') ? ';' : ',';
+        
+        // Chercher les colonnes nom/prenom dans la première ligne
+        let header = firstLine.split(sep).map(h => classRosters.normalizeKey(h.replace(/^"|"$/g, '')));
+        let idxPrenom = header.indexOf('prenom');
+        if (idxPrenom === -1) idxPrenom = header.findIndex(h => h.includes('prenom'));
+        let idxNom = header.indexOf('nom');
+        if (idxNom === -1) idxNom = header.findIndex(h => h === 'nom' || h.includes('nom'));
+        
+        let startIdx = 1;
+        // Si on n'a pas trouvé de header explicite, on suppose 0=prenom, 1=nom et on lit dès la 1ère ligne
+        if (idxPrenom === -1 || idxNom === -1) {
+          idxPrenom = 0;
+          idxNom = 1;
+          startIdx = 0;
+          // Sauf si la ligne 0 ressemble vraiment à un header générique
+          if (header[0].includes('prenom') || header[1].includes('nom')) {
+            startIdx = 1;
+          }
+        }
+        
+        for (let i = startIdx; i < lines.length; i++) {
+          const parts = lines[i].split(sep);
+          if (parts.length <= Math.max(idxPrenom, idxNom)) continue;
+          
+          const prenom = parts[idxPrenom].replace(/^"|"$/g, '').trim();
+          const nom = parts[idxNom].replace(/^"|"$/g, '').trim();
+          
+          if (!prenom && !nom) continue;
+          students.push({ prenom, nom });
+        }
+      }
     }
 
     const classRosters = require('./lib/class-rosters');
