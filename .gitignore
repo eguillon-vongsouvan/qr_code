@@ -1,0 +1,27 @@
+node_modules/
+qr-codes/
+.env
+.DS_Store
+Thumbs.db
+*.log
+*.err
+server.err
+_test.pdf
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+.venv/
+venv/
+env/
+credentials.json
+token.json
+*.pem
+
+# Données runtime — ne jamais committer
+data/
+uploads/
+qr_code_deploy.tar.gz
+scripts/deploy.js
+scripts/deploy.sh
+scripts/test_isolation.js

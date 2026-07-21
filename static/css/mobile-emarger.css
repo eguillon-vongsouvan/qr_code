@@ -1,0 +1,421 @@
+/* Modern Mobile Student Experience */
+
+body.page-mobile-emarger {
+  --mobile-max: 480px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body.page-mobile-emarger .app-shell {
+  padding: 1.5rem;
+  max-width: var(--mobile-max);
+}
+
+.mobile-steps {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  padding: 0;
+  list-style: none;
+}
+
+.mobile-steps li {
+  flex: 1;
+  padding: 0.6rem;
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+}
+
+.mobile-steps li.is-done {
+  border-color: var(--success);
+  color: var(--success);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.mobile-steps li.is-active {
+  border-color: var(--accent);
+  color: var(--ink);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.session-chip {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.session-chip-k {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.session-chip-v {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.session-chip-v--course {
+  font-family: var(--font-display);
+  color: var(--accent-cyan);
+}
+
+.mobile-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+}
+
+.mobile-panel h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem;
+}
+
+.mobile-lead {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.geo-status {
+  padding: 1.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  font-size: 0.9rem;
+}
+
+.geo-status.is-ok { border-color: var(--success); color: var(--success); background: rgba(16, 185, 129, 0.05); }
+.geo-status.is-warn { border-color: var(--accent-gold); color: var(--accent-gold); background: rgba(245, 158, 11, 0.05); }
+.geo-status.is-err { border-color: var(--error); color: var(--error); background: rgba(239, 68, 68, 0.05); }
+
+.geo-spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(59, 130, 246, 0.1);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.btn-mobile-submit {
+  width: 100%;
+  padding: 1.25rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  margin-top: 1rem;
+}
+
+/* Success State */
+.success-hero {
+  text-align: center;
+  padding: 3rem 2rem;
+}
+
+.success-check {
+  width: 80px;
+  height: 80px;
+  background: var(--success);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  margin: 0 auto 2rem;
+  box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+}
+
+.success-name {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+
+.success-hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.success-session {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════
+   Student Name Selector
+   ═══════════════════════════════════════════ */
+
+.student-selector {
+  margin-bottom: 1.5rem;
+}
+
+.student-selector-loading {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Search Input */
+.student-search-box {
+  margin-bottom: 1rem;
+}
+
+.student-search-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.student-search-input {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  font-size: 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--ink);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.student-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Student List */
+.student-list-container {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  scrollbar-width: thin;
+}
+
+.student-list-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.student-list-container::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.student-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+}
+
+.student-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: calc(var(--radius-sm) - 2px);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  user-select: none;
+}
+
+.student-item:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.student-item:active {
+  transform: scale(0.98);
+  background: rgba(59, 130, 246, 0.14);
+}
+
+.student-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.student-item + .student-item {
+  border-top: 1px solid rgba(128, 128, 128, 0.08);
+}
+
+.student-item-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-cyan));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.student-item-name {
+  font-size: 0.95rem;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.student-item-name strong {
+  font-weight: 700;
+}
+
+.student-list-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Selected Card */
+.student-selected-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem;
+  background: rgba(16, 185, 129, 0.06);
+  border: 2px solid var(--success);
+  border-radius: var(--radius-sm);
+  animation: slideIn 0.25s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.student-selected-info {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.student-selected-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--success);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.student-selected-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin: 0;
+  color: var(--ink);
+}
+
+.student-selected-hint {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: var(--success);
+  font-weight: 600;
+}
+
+.btn-change-student {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-change-student:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+/* Fallback manual input (when no roster) */
+.mobile-field {
+  margin-bottom: 1.25rem;
+}
+
+.mobile-field label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mobile-field input {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  font-size: 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--ink);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.mobile-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}

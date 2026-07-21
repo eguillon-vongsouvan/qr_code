@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Appel en cours — QR sécurisé</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/theme.css" />
+</head>
+<body class="has-sidebar page-teacher">
+  <div class="tex-layer tex-hex" aria-hidden="true"></div>
+  <div class="tex-layer tex-grid" aria-hidden="true"></div>
+  <div class="tex-layer tex-noise" aria-hidden="true"></div>
+  <div class="tex-layer tex-vignette" aria-hidden="true"></div>
+
+  <div class="app-shell">
+    <div class="app-main">
+      <header class="site-header">
+        <img class="site-logo" src="/static/img/logo-guardia.svg" alt="Logo" width="56" height="56" />
+        <div class="site-header-text">
+          <h1>Appel sécurisé</h1>
+          <p>Code QR dynamique — usage en salle de classe</p>
+        </div>
+      </header>
+
+      <nav class="sommaire" aria-label="Sommaire">
+        <p class="sommaire-title">Sommaire</p>
+        <ol class="sommaire-list">
+          <li><a href="#screen-setup">Configurer la session</a></li>
+          <li><a href="#prof-qr">Code QR en direct</a></li>
+          <li><a href="#sidebar" onclick="document.querySelector('.app-sidebar').scrollIntoView({behavior:'smooth'});return false;">Voir les connectés →</a></li>
+        </ol>
+      </nav>
+
+      <div id="alert-file" class="alert hidden">
+        <strong>Page ouverte en fichier local</strong>
+        Les requêtes vers l’API ne fonctionnent pas depuis <code>file://</code>. Indiquez l’URL du serveur ci-dessous (ex. <code>http://127.0.0.1:8765</code>).
+      </div>
+
+      <section id="screen-setup" class="panel">
+        <div class="steps" aria-hidden="true">
+          <span class="step-pill active">1 · Configurer</span>
+          <span class="step-pill">2 · Projeter le QR</span>
+        </div>
+        <h2>Démarrer un appel</h2>
+        <p class="hint">Saisissez la salle ou le cours, puis affichez le QR au vidéoprojecteur. Les élèves scannent avec Google (Wi‑Fi établissement requis en production).</p>
+        <label for="api-base">URL du serveur API (si besoin)</label>
+        <input type="url" id="api-base" placeholder="Laisser vide si vous êtes déjà sur http://127.0.0.1:8765/…" autocomplete="off" />
+        <label for="room">Salle ou cours</label>
+        <input type="text" id="room" placeholder="Ex. Salle B204 — Mathématiques" maxlength="120" autofocus />
+        <div class="row">
+          <button type="button" class="primary" id="btn-start">Afficher le code QR →</button>
+        </div>
+        <footer class="note">
+          Dans <code>.env</code> : <code>PUBLIC_BASE_URL=http://VOTRE_IP:8765</code>, redémarrez le serveur, pare-feu ouvert. Même Wi‑Fi pour les élèves.
+        </footer>
+      </section>
+
+      <section id="screen-live" class="panel hidden">
+        <div class="steps" aria-hidden="true">
+          <span class="step-pill done">1 · Configurer</span>
+          <span class="step-pill active">2 · Projeter le QR</span>
+        </div>
+        <div id="prof-qr">
+          <div class="live-head">
+            <span class="badge-room" id="room-display">—</span>
+            <span class="timer" id="countdown">—</span>
+          </div>
+          <div class="qr-frame">
+            <p>Scan → <strong>connexion Google</strong> → présence enregistrée. QR renouvelé automatiquement.</p>
+            <img id="qr" alt="Code QR d’appel" width="400" height="400" />
+            <p id="status">Chargement du QR…</p>
+          </div>
+          <div class="row" style="margin-top:1rem;">
+            <button type="button" class="ghost" id="btn-new">← Nouvelle session</button>
+            <button type="button" class="ghost" id="btn-close-call">Clore l'appel</button>
+            <a class="ghost" id="btn-export-pdf" href="#" download>Exporter PDF</a>
+            <a class="ghost" id="btn-export-csv" href="#" download>Exporter Rapport</a>
+            <a class="ghost" id="btn-export-xlsx" href="#" download>Exporter Excel</a>
+          </div>
+        </div>
+      </section>
+      <section id="screen-manual" class="panel hidden">
+        <h2>Gestion des statuts</h2>
+        <p class="hint">Mise à jour manuelle en Présent, En retard (minutes), ou Absent excusé.</p>
+        <div id="manual-list"></div>
+      </section>
+    </div>
+
+    <aside class="app-sidebar" id="sidebar" aria-label="Personnes connectées">
+      <div class="sidebar-head">
+        <h2>Connectés</h2>
+        <span class="presence-count" id="presence-count">0</span>
+      </div>
+      <p class="sidebar-hint">Mise à jour automatique en temps réel.</p>
+      <p class="presence-empty" id="presence-empty" hidden>En attente du premier élève…</p>
+      <ul class="presence-list" id="presence-list"></ul>
+    </aside>
+  </div>
+
+  <script>
+    const LS_API = 'appel_qr_api_base';
+    const params = new URLSearchParams(location.search);
+    let sessionId = params.get('session');
+    let refreshMs = 5000;
+    let countdownTimer = null;
+    let refreshTimeoutId = null;
+    let presencePoll = null;
+    let sse = null;
+    let attendanceRows = [];
+
+    const el = (id) => document.getElementById(id);
+
+    function getApiBase() {
+      const raw = el('api-base').value.trim().replace(/\/$/, '');
+      if (raw) return raw;
+      if (location.protocol === 'http:' || location.protocol === 'https:') return '';
+      return '';
+    }
+
+    function api(path) {
+      const base = getApiBase();
+      if (!base && (location.protocol === 'file:' || location.protocol === '')) {
+        throw new Error('Définissez l’URL du serveur (ex. http://127.0.0.1:8765)');
+      }
+      return (base || '') + path;
+    }
+
+    function escapeHtml(text) {
+      return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function attendanceUrl() {
+      if (!sessionId) return null;
+      return api('/api/sessions/' + encodeURIComponent(sessionId) + '/attendance');
+    }
+
+    function statusLabel(status, lateMinutes) {
+      if (status === 'late') return 'En retard' + (lateMinutes ? ' (' + lateMinutes + ' min)' : '');
+      if (status === 'absent_excused') return 'Absent excusé';
+      return 'Présent';
+    }
+
+    function renderSidebar(rows) {
+      el('presence-count').textContent = String(rows.length);
+      el('presence-empty').hidden = rows.length > 0;
+      el('presence-list').innerHTML = rows.map(function (row) {
+        const name = row.student_name || [row.prenom, row.nom].filter(Boolean).join(' ') || 'Élève';
+        const time = row.at ? new Date(row.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+        return '<li class="presence-item"><span class="presence-dot" aria-hidden="true"></span><div class="presence-meta"><span class="presence-name">' +
+          escapeHtml(name) +
+          '</span><span class="presence-sub">' +
+          escapeHtml(statusLabel(row.status, row.late_minutes)) +
+          ' · ' + escapeHtml(time) + '</span></div></li>';
+      }).join('');
+    }
+
+    function renderManualTable(rows) {
+      const host = el('manual-list');
+      if (!rows.length) {
+        host.innerHTML = '<p class="hint">Aucun élève enregistré pour l’instant.</p>';
+        return;
+      }
+      host.innerHTML = rows.map(function (row) {
+        const name = row.student_name || [row.prenom, row.nom].filter(Boolean).join(' ');
+        const isLate = row.status === 'late';
+        const isExcused = row.status === 'absent_excused';
+        return '<div class="box" style="margin:0 0 0.8rem;"><div style="display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center;justify-content:space-between;"><strong>' +
+          escapeHtml(name) + '</strong><small>' + escapeHtml(statusLabel(row.status, row.late_minutes)) +
+          '</small></div><div class="row" style="margin-top:0.75rem;"><select data-entry-id="' + row.id + '" class="status-select"><option value="present"' +
+          (row.status === 'present' ? ' selected' : '') + '>Présent</option><option value="late"' + (isLate ? ' selected' : '') +
+          '>En retard</option><option value="absent_excused"' + (isExcused ? ' selected' : '') +
+          '>Absent excusé</option></select><input data-entry-id="' + row.id + '" class="late-input" type="number" min="1" placeholder="Minutes retard" value="' +
+          (row.late_minutes || '') + '"' + (isLate ? '' : ' disabled') +
+          '><input data-entry-id="' + row.id + '" class="excuse-input" type="text" placeholder="Motif absence excusée" value="' +
+          escapeHtml(row.excuse_note || '') + '"' + (isExcused ? '' : ' disabled') +
+          '><button type="button" class="ghost save-status" data-entry-id="' + row.id + '">Enregistrer</button></div></div>';
+      }).join('');
+    }
+
+    async function refreshAttendance() {
+      const url = attendanceUrl();
+      if (!url) {
+        attendanceRows = [];
+        renderSidebar(attendanceRows);
+        renderManualTable(attendanceRows);
+        return;
+      }
+      const r = await fetch(url, { cache: 'no-store' });
+      if (!r.ok) throw new Error('Impossible de charger les présences');
+      attendanceRows = await r.json();
+      renderSidebar(attendanceRows);
+      renderManualTable(attendanceRows);
+    }
+
+    function startPresencePoll() {
+      if (presencePoll) clearInterval(presencePoll);
+      presencePoll = setInterval(function () {
+        refreshAttendance().catch(function () {});
+      }, 3000);
+    }
+
+    function clearSchedulers() {
+      if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+      if (refreshTimeoutId) { clearTimeout(refreshTimeoutId); refreshTimeoutId = null; }
+      if (presencePoll) { clearInterval(presencePoll); presencePoll = null; }
+      if (sse) { sse.close(); sse = null; }
+    }
+
+    function showSetup() {
+      clearSchedulers();
+      el('screen-live').classList.add('hidden');
+      el('screen-manual').classList.add('hidden');
+      el('screen-setup').classList.remove('hidden');
+      sessionId = null;
+      attendanceRows = [];
+      renderSidebar(attendanceRows);
+      renderManualTable(attendanceRows);
+    }
+
+    function showLive() {
+      el('screen-setup').classList.add('hidden');
+      el('screen-live').classList.remove('hidden');
+      el('screen-manual').classList.remove('hidden');
+      startPresencePoll();
+      refreshAttendance().catch(function () {});
+      const base = getApiBase();
+      const streamUrl = (base || '') + '/api/sessions/' + encodeURIComponent(sessionId) + '/live';
+      sse = new EventSource(streamUrl);
+      sse.addEventListener('attendance_added', function () { refreshAttendance().catch(function () {}); });
+      sse.addEventListener('attendance_updated', function () { refreshAttendance().catch(function () {}); });
+      sse.addEventListener('attendance_cleared', function () {
+        attendanceRows = [];
+        renderSidebar(attendanceRows);
+        renderManualTable(attendanceRows);
+      });
+      sse.addEventListener('session_closed', function () { setStatus('Appel cloture.', true); refreshAttendance().catch(function () {}); });
+    }
+
+    function setStatus(text, isError) {
+      const s = el('status');
+      s.textContent = text;
+      s.classList.toggle('err', !!isError);
+    }
+
+    function updateCountdown(seconds) {
+      el('countdown').textContent = 'Prochain QR : ' + Math.max(0, seconds) + ' s';
+    }
+
+    async function refreshQr() {
+      const img = el('qr');
+      if (!sessionId) return;
+      if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+      try {
+        const r = await fetch(api('/api/sessions/' + encodeURIComponent(sessionId) + '/token'));
+        if (!r.ok) throw new Error((await r.text()) || r.statusText);
+        const j = await r.json();
+        refreshMs = (j.refresh_in || 5) * 1000;
+        setStatus('Code a jour — valide environ ' + (j.expires_in || 45) + ' s', false);
+        const url = api('/api/sessions/' + encodeURIComponent(sessionId) + '/qr.png?t=' + Date.now());
+        img.classList.remove('loaded', 'error');
+        img.onload = function () { img.classList.add('loaded'); img.onload = null; };
+        img.onerror = function () { img.classList.add('error'); setStatus('Impossible d afficher le QR.', true); };
+        img.src = url;
+        let left = Math.ceil(refreshMs / 1000);
+        updateCountdown(left);
+        countdownTimer = setInterval(function () { left -= 1; updateCountdown(left); if (left <= 0) { clearInterval(countdownTimer); countdownTimer = null; } }, 1000);
+        refreshTimeoutId = setTimeout(refreshQr, refreshMs);
+      } catch (e) {
+        setStatus(String(e.message || e), true);
+        refreshTimeoutId = setTimeout(refreshQr, 3000);
+      }
+    }
+
+    async function startSession() {
+      const roomName = el('room').value.trim() || 'Salle non precisee';
+      const btn = el('btn-start');
+      btn.disabled = true;
+      try {
+        localStorage.setItem(LS_API, el('api-base').value.trim());
+        const r = await fetch(api('/api/sessions'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room_name: roomName }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        const data = await r.json();
+        sessionId = data.session_id;
+        try { history.replaceState({}, '', '?session=' + encodeURIComponent(sessionId)); } catch (_) {}
+        el('room-display').textContent = roomName;
+        el('btn-export-pdf').href = api('/api/sessions/' + encodeURIComponent(sessionId) + '/export.pdf');
+        el('btn-export-csv').href = api('/rapport/' + encodeURIComponent(sessionId));
+        el('btn-export-xlsx').href = api('/api/sessions/' + encodeURIComponent(sessionId) + '/export.xlsx');
+        showLive();
+        refreshQr();
+      } catch (e) {
+        alert('Impossible de creer la session : ' + (e.message || e));
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function closeCall() {
+      if (!sessionId) return;
+      if (!confirm("Confirmer la cloture de l appel ?")) return;
+      const r = await fetch(api('/api/sessions/' + encodeURIComponent(sessionId) + '/close'), { method: 'POST' });
+      if (!r.ok) throw new Error('Impossible de cloturer');
+      setStatus('Appel cloture. Les nouveaux scans sont bloques.', true);
+    }
+
+    async function saveManualStatus(entryId) {
+      const status = document.querySelector('.status-select[data-entry-id="' + entryId + '"]').value;
+      const lateInput = document.querySelector('.late-input[data-entry-id="' + entryId + '"]');
+      const excuseInput = document.querySelector('.excuse-input[data-entry-id="' + entryId + '"]');
+      const payload = {
+        status: status,
+        late_minutes: lateInput ? Number(lateInput.value || 0) : null,
+        excuse_note: excuseInput ? excuseInput.value : '',
+      };
+      const r = await fetch(api('/api/sessions/' + encodeURIComponent(sessionId) + '/attendance/' + encodeURIComponent(entryId)), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error('Mise a jour impossible');
+      await refreshAttendance();
+    }
+
+    el('btn-start').addEventListener('click', startSession);
+    el('btn-new').addEventListener('click', function () { try { history.replaceState({}, '', location.pathname); } catch (_) {} showSetup(); });
+    el('btn-close-call').addEventListener('click', function () { closeCall().catch(function (e) { alert(e.message || e); }); });
+
+    document.addEventListener('change', function (event) {
+      if (!event.target.classList.contains('status-select')) return;
+      const id = event.target.getAttribute('data-entry-id');
+      const lateInput = document.querySelector('.late-input[data-entry-id="' + id + '"]');
+      const excuseInput = document.querySelector('.excuse-input[data-entry-id="' + id + '"]');
+      const v = event.target.value;
+      if (lateInput) lateInput.disabled = v !== 'late';
+      if (excuseInput) excuseInput.disabled = v !== 'absent_excused';
+    });
+
+    document.addEventListener('click', function (event) {
+      if (!event.target.classList.contains('save-status')) return;
+      const id = event.target.getAttribute('data-entry-id');
+      saveManualStatus(id).catch(function (e) { alert(e.message || e); });
+    });
+
+    if (location.protocol === 'file:') el('alert-file').classList.remove('hidden');
+    const saved = localStorage.getItem(LS_API);
+    if (saved) el('api-base').value = saved;
+    renderSidebar([]);
+    renderManualTable([]);
+
+    if (sessionId) {
+      showLive();
+      el('room-display').textContent = 'Chargement...';
+      fetch(api('/api/sessions/' + encodeURIComponent(sessionId) + '/info'))
+        .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+        .then(function (data) {
+          el('room-display').textContent = data.room || 'Appel en cours';
+          el('btn-export-pdf').href = api('/api/sessions/' + encodeURIComponent(sessionId) + '/export.pdf');
+          el('btn-export-csv').href = api('/rapport/' + encodeURIComponent(sessionId));
+          el('btn-export-xlsx').href = api('/api/sessions/' + encodeURIComponent(sessionId) + '/export.xlsx');
+        })
+        .catch(function () {
+          el('room-display').textContent = 'Session introuvable';
+          setStatus('Session expiree. Nouvelle session.', true);
+        });
+      refreshQr();
+    }
+  </script>
+</body>
+</html>
